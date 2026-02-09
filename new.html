@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Necșus v4 // OMNI</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      /* Default Theme: Cyber Blue */
+      --hue: 190;
+      --bg: #050508;
+      --panel: #0a0a0f;
+      --surface: #13131a;
+      --primary: hsl(var(--hue), 100%, 50%);
+      --glow: hsla(var(--hue), 100%, 50%, 0.3);
+      --text: #e0e0e0;
+      --dim: #7a7a85;
+      --border: rgba(255, 255, 255, 0.08);
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --font-ui: 'Inter', system-ui, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { 
+      font-family: var(--font-ui); 
+      background: var(--bg); 
+      color: var(--text); 
+      height: 100vh; 
+      display: flex; 
+      overflow: hidden;
+      transition: background 0.5s;
+    }
+
+    /* --- SIDEBAR (COMMAND CENTER) --- */
+    #sidebar {
+      width: 400px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      z-index: 20;
+      box-shadow: 5px 0 30px rgba(0,0,0,0.5);
+    }
+
+    /* Header & Theme Switcher */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    .logo {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -1px;
+      color: var(--primary);
+      text-shadow: 0 0 15px var(--glow);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .theme-dots { display: flex; gap: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; transition: 0.3s; opacity: 0.5; }
+    .dot:hover, .dot.active { transform: scale(1.3); opacity: 1; box-shadow: 0 0 10px currentColor; }
+
+    /* Search Input */
+    .search-wrapper { position: relative; margin-bottom: 20px; }
+    #query {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 14px 14px 14px 45px;
+      border-radius: 8px;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      transition: 0.3s;
+    }
+    #query:focus { 
+      border-color: var(--primary); 
+      box-shadow: 0 0 20px var(--glow); 
+      outline: none; 
+    }
+    .search-icon { 
+      position: absolute; 
+      left: 15px; 
+      top: 50%; 
+      transform: translateY(-50%); 
+      color: var(--dim); 
+    }
+
+    /* Tabs */
+    .filters {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      scrollbar-width: none;
+    }
+    .filter-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--dim);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: 0.2s;
+      text-transform: uppercase;
+    }
+    .filter-chip:hover { color: white; border-color: var(--dim); }
+    .filter-chip.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px var(--glow);
+    }
+
+    /* Results List */
+    #results {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+    
+    .card {
+      background: rgba(255,255,255,0.02);
+      border-left: 2px solid transparent;
+      padding: 15px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 0 6px 6px 0;
+      opacity: 0;
+      transform: translateX(-10px);
+      animation: slideIn 0.3s forwards;
+    }
+    
+    @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+
+    .card:hover, .card.selected {
+      background: rgba(255,255,255,0.06);
+      border-left-color: var(--primary);
+    }
+    .card.selected {
+      box-shadow: inset 10px 0 20px -10px var(--glow);
+    }
+
+    .card-top { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
+    .card-source { color: var(--primary); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .card-desc { font-size: 12px; color: var(--dim); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* --- MAIN VIEW --- */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: #000;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      height: 50px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      justify-content: space-between;
+    }
+    .url-display {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--dim);
+      opacity: 0.7;
+    }
+    .actions { display: flex; gap: 10px; }
+    .btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn:hover { background: rgba(255,255,255,0.1); }
+    .btn.primary { background: var(--primary); color: #000; border-color: var(--primary); font-weight: bold; }
+
+    /* Content Area */
+    #content-area { flex: 1; position: relative; }
+    iframe { width: 100%; height: 100%; border: none; background: white; }
+
+    /* Security Overlay */
+    #security-overlay {
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at center, #1a1a20 0%, #000 100%);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .shield-icon { font-size: 60px; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { text-shadow: 0 0 0 var(--glow); } 50% { text-shadow: 0 0 30px var(--glow); } 100% { text-shadow: 0 0 0 var(--glow); } }
+
+    /* --- SCRATCHPAD (Collapsible) --- */
+    #scratchpad {
+      width: 300px;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: margin-right 0.3s;
+    }
+    #scratchpad.collapsed { margin-right: -300px; }
+    
+    .pad-header {
+      padding: 15px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 15px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="header">
+    <div class="logo"><i class="fa-solid fa-cube"></i> NECȘUS // OMNI</div>
+    <div class="theme-dots">
+      <div class="dot active" style="background:#00f2ff" onclick="setTheme(190)"></div> <div class="dot" style="background:#00ff55" onclick="setTheme(130)"></div> <div class="dot" style="background:#ff0055" onclick="setTheme(340)"></div> <div class="dot" style="background:#a600ff" onclick="setTheme(270)"></div> </div>
+  </div>
+
+  <div class="search-wrapper">
+    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+    <input id="query" type="text" placeholder="Initialize Search Protocol..." spellcheck="false" autocomplete="off">
+  </div>
+
+  <div class="filters">
+    <div class="filter-chip active" onclick="setFilter('all', this)">All</div>
+    <div class="filter-chip" onclick="setFilter('dev', this)">Dev</div>
+    <div class="filter-chip" onclick="setFilter('wiki', this)">Wiki</div>
+    <div class="filter-chip" onclick="setFilter('social', this)">Social</div>
+  </div>
+
+  <div id="results">
+    <div style="text-align: center; color: var(--dim); margin-top: 100px;">
+      <i class="fa-solid fa-satellite-dish" style="font-size: 24px; margin-bottom: 10px;"></i>
+      <p style="font-size: 12px;">SYSTEM READY<br>Awaiting input vector</p>
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div class="toolbar">
+    <div class="url-display" id="url-bar">NO_SIGNAL</div>
+    <div class="actions">
+      <button class="btn" onclick="togglePad()">📝 Notes</button>
+      <button class="btn primary" onclick="openExternal()">↗ Open External</button>
+    </div>
+  </div>
+
+  <div id="content-area">
+    <div id="security-overlay">
+      <i class="fa-solid fa-shield-cat shield-icon"></i>
+      <h2 style="margin-bottom: 10px;">X-FRAME RESTRICTION DETECTED</h2>
+      <p style="color:var(--dim); font-size: 14px; max-width: 400px; margin-bottom: 25px;">
+        Target server refuses connection via proxy frame. Direct access required.
+      </p>
+      <button class="btn primary" onclick="openExternal()" style="padding: 10px 25px; font-size: 14px;">LAUNCH DIRECT UPLINK</button>
+    </div>
+    <iframe id="frame" src="about:blank"></iframe>
+  </div>
+</div>
+
+<div id="scratchpad">
+  <div class="pad-header">
+    <span>INTERNAL_LOGS.txt</span>
+    <i class="fa-solid fa-floppy-disk" style="color:var(--primary)"></i>
+  </div>
+  <textarea id="notes" placeholder="// Type your findings here..."></textarea>
+</div>
+
+<script>
+// --- CORE SYSTEMS ---
+let currentTheme = 190;
+let activeFilter = 'all';
+let currentUrl = '';
+let searchResults = [];
+let selectedIndex = -1;
+
+// --- API HANDLERS ---
+const API = {
+  google: (q) => ({
+    title: `Google Search: ${q}`,
+    desc: 'Standard web crawl.',
+    url: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+    source: 'Google',
+    blocked: true
+  }),
+  
+  dontpad: (q) => {
+    const slug = q.toLowerCase().replace(/\s+/g, '');
+    return {
+      title: `Dontpad /${slug}`,
+      desc: 'Collaborative text buffer.',
+      url: `https://dontpad.com/${slug}`,
+      source: 'Dontpad',
+      blocked: false
+    };
+  },
+
+  wiki: async (q) => {
+    try {
+      const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&origin=*`);
+      const data = await res.json();
+      return data.query.search.map(i => ({
+        title: i.title,
+        desc: i.snippet.replace(/<[^>]*>/g, ''),
+        url: `https://en.wikipedia.org/wiki/${encodeURIComponent(i.title)}`,
+        source: 'Wikipedia',
+        blocked: false
+      }));
+    } catch { return []; }
+  },
+
+  reddit: async (q) => {
+    try {
+      const res = await fetch(`https://www.reddit.com/search.json?q=${q}&sort=relevance&limit=4`);
+      const data = await res.json();
+      return data.data.children.map(i => ({
+        title: i.data.title,
+        desc: `r/${i.data.subreddit} • ⬆️ ${i.data.ups}`,
+        url: `https://www.reddit.com${i.data.permalink}`,
+        source: 'Reddit',
+        blocked: true // Reddit blocks iframes
+      }));
+    } catch { return []; }
+  },
+
+  stackoverflow: async (q) => {
+    try {
+      const res = await fetch(`https://api.stackexchange.com/2.3/search?order=desc&sort=relevance&intitle=${q}&site=stackoverflow`);
+      const data = await res.json();
+      return data.items.slice(0, 4).map(i => ({
+        title: i.title,
+        desc: `Score: ${i.score} • Answered: ${i.is_answered}`,
+        url: i.link,
+        source: 'StackOverflow',
+        blocked: true
+      }));
+    } catch { return []; }
+  },
+
+  mdn: async (q) => {
+    return [{
+      title: `MDN: ${q}`,
+      desc: 'Mozilla Developer Network documentation.',
+      url: `https://developer.mozilla.org/search?q=${encodeURIComponent(q)}`,
+      source: 'MDN',
+      blocked: false // Often works, sometimes blocked depending on region
+    }];
+  },
+
+  youtube: (q) => ({
+    title: `YouTube: ${q}`,
+    desc: 'Video content search.',
+    url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+    source: 'YouTube',
+    blocked: true
+  })
+};
+
+// --- CONTROLLER ---
+
+async function runSearch() {
+  const q = document.getElementById('query').value.trim();
+  if (!q) return;
+
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '<div style="padding:20px; color:var(--primary)">SCANNING NETWORKS...</div>';
+  
+  selectedIndex = -1;
+  let pool = [];
+
+  // Always add Google & Dontpad
+  pool.push(API.google(q));
+  pool.push(API.dontpad(q));
+
+  // Add Async Sources based on needs
+  const promises = [];
+  
+  if (activeFilter === 'all' || activeFilter === 'wiki') promises.push(API.wiki(q));
+  if (activeFilter === 'all' || activeFilter === 'social') promises.push(API.reddit(q));
+  if (activeFilter === 'all' || activeFilter === 'social') pool.push(API.youtube(q));
+  if (activeFilter === 'all' || activeFilter === 'dev') {
+    promises.push(API.stackoverflow(q));
+    promises.push(API.mdn(q));
+  }
+
+  // Execute
+  const responses = await Promise.all(promises);
+  responses.forEach(r => pool = pool.concat(r));
+
+  searchResults = pool;
+  renderResults();
+}
+
+function renderResults() {
+  const container = document.getElementById('results');
+  container.innerHTML = searchResults.map((item, idx) => `
+    <div class="card" id="card-${idx}" onclick="loadItem(${idx})" style="animation-delay: ${idx * 0.05}s">
+      <div class="card-top">
+        <span class="card-source">${item.source}</span>
+        ${item.blocked ? '<i class="fa-solid fa-lock" style="font-size:9px; opacity:0.5"></i>' : ''}
+      </div>
+      <div class="card-title">${item.title}</div>
+      <div class="card-desc">${item.desc}</div>
+    </div>
+  `).join('');
+}
+
+function loadItem(idx) {
+  const item = searchResults[idx];
+  currentUrl = item.url;
+  document.getElementById('url-bar').innerText = currentUrl;
+  
+  // Highlight selection
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`card-${idx}`).classList.add('selected');
+
+  const frame = document.getElementById('frame');
+  const overlay = document.getElementById('security-overlay');
+
+  if (item.blocked) {
+    frame.style.display = 'none';
+    overlay.style.display = 'flex';
+  } else {
+    frame.style.display = 'block';
+    overlay.style.display = 'none';
+    frame.src = item.url;
+  }
+}
+
+function openExternal() { if(currentUrl) window.open(currentUrl, '_blank'); }
+
+// --- UI UTILITIES ---
+
+function setTheme(hue) {
+  document.documentElement.style.setProperty('--hue', hue);
+  document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function setFilter(filter, el) {
+  activeFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  if(document.getElementById('query').value) runSearch();
+}
+
+function togglePad() {
+  document.getElementById('scratchpad').classList.toggle('collapsed');
+}
+
+// --- KEYBOARD NAV ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedIndex = Math.min(selectedIndex + 1, searchResults.length - 1);
+    highlightCard();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedIndex = Math.max(selectedIndex - 1, 0);
+    highlightCard();
+  } else if (e.key === 'Enter') {
+    if (document.activeElement === document.getElementById('query')) {
+      runSearch();
+    } else if (selectedIndex >= 0) {
+      loadItem(selectedIndex);
+    }
+  } else if (e.ctrlKey && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('query').focus();
+  }
+});
+
+function highlightCard() {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById(`card-${selectedIndex}`);
+  if(card) {
+    card.classList.add('selected');
+    card.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+// Auto-save notes
+const notes = document.getElementById('notes');
+notes.value = localStorage.getItem('necsus_v4_notes') || '';
+notes.addEventListener('input', () => localStorage.setItem('necsus_v4_notes', notes.value));
+
+</script>
+</body>
+</html>
