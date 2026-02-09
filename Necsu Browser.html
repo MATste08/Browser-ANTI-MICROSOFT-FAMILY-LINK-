@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Motor de căutare avansat</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      background: #1e1e1e;
+      color: white;
+    }
+
+    #left {
+      width: 35%;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border-right: 2px solid #333;
+      background: #252525;
+    }
+
+    #searchContainer {
+      flex-shrink: 0;
+      margin-bottom: 20px;
+    }
+
+    #searchContainer h2 {
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    #query {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 2px solid #444;
+      margin-bottom: 10px;
+      background: #333;
+      color: white;
+      font-size: 16px;
+      transition: 0.3s;
+    }
+
+    #query:focus {
+      outline: none;
+      border-color: #4caf50;
+      background: #3a3a3a;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #4caf50;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .filter-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      background: #444;
+      flex: 0 1 auto;
+      width: auto;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      transition: 0.3s;
+    }
+
+    .filter-btn.active {
+      background: #4caf50;
+    }
+
+    .filter-btn:hover {
+      background: #555;
+    }
+
+    #results {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    #results::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #results::-webkit-scrollbar-track {
+      background: #333;
+      border-radius: 8px;
+    }
+
+    #results::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 8px;
+    }
+
+    #results::-webkit-scrollbar-thumb:hover {
+      background: #666;
+    }
+
+    .result {
+      padding: 15px;
+      margin-bottom: 12px;
+      background: #333;
+      border-radius: 8px;
+      border-left: 4px solid #4caf50;
+      transition: 0.3s;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .result:hover {
+      background: #3d3d3d;
+      transform: translateX(5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .result a {
+      color: #4aa3ff;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      word-break: break-word;
+      cursor: pointer;
+    }
+
+    .result a:hover {
+      text-decoration: underline;
+      color: #66b3ff;
+    }
+
+    .result p {
+      margin: 0;
+      color: #aaa;
+      font-size: 14px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .result-source {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+    }
+
+    .result-url {
+      font-size: 12px;
+      color: #666;
+      margin-top: 3px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #999;
+    }
+
+    .spinner {
+      border: 3px solid #444;
+      border-top: 3px solid #4caf50;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error {
+      padding: 15px;
+      background: #4a2a2a;
+      border-left: 4px solid #ff6b6b;
+      border-radius: 8px;
+      color: #ff8787;
+      margin-bottom: 12px;
+    }
+
+    .no-results {
+      padding: 20px;
+      text-align: center;
+      color: #888;
+    }
+
+    #right {
+      width: 65%;
+      background: #111;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #viewer {
+      width: 100%;
+      height: 100%;
+      border: none;
+      flex: 1;
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: #666;
+      font-size: 18px;
+    }
+
+    #backBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px 15px;
+      background: #444;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      z-index: 10;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    #backBtn:hover {
+      background: #555;
+    }
+
+    #backBtn:disabled {
+      background: #333;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .result-count {
+      font-size: 12px;
+      color: #888;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #444;
+    }
+
+    @media (max-width: 768px) {
+      #left {
+        width: 50%;
+      }
+
+      #right {
+        width: 50%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        flex-direction: column;
+      }
+
+      #left {
+        width: 100%;
+        height: 40vh;
+        border-right: none;
+        border-bottom: 2px solid #333;
+      }
+
+      #right {
+        width: 100%;
+        height: 60vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="left">
+  <div id="searchContainer">
+    <h2>🔍 Motor de căutare</h2>
+    <input id="query" type="text" placeholder="Caută ceva..." autocomplete="off">
+    
+    <div class="button-group">
+      <button onclick="search()">🔍 Caută</button>
+    </div>
+
+    <div class="filter-buttons">
+      <button class="filter-btn active" onclick="setEngine('all')">Toate</button>
+      <button class="filter-btn" onclick="setEngine('web')">Web</button>
+      <button class="filter-btn" onclick="setEngine('wikipedia')">Wikipedia</button>
+      <button class="filter-btn" onclick="setEngine('github')">GitHub</button>
+    </div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<div id="right">
+  <button id="backBtn" onclick="goBack()" disabled>← Înapoi</button>
+  <div id="viewer">
+    <div class="placeholder">👈 Selectează un rezultat pentru a-l deschide</div>
+  </div>
+</div>
+
+<script>
+let historyStack = [];
+let currentSearch = '';
+let resultCount = 0;
+let currentEngine = 'all';
+
+function setEngine(engine) {
+  currentEngine = engine;
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
+}
+
+function openInViewer(url) {
+  historyStack.push(url);
+  updateBackButton();
+  
+  const viewer = document.getElementById('viewer');
+  viewer.innerHTML = `
+    <iframe 
+      src="${url}" 
+      style="width:100%; height:100%; border:none;"
+      sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
+    ></iframe>
+  `;
+}
+
+function goBack() {
+  historyStack.pop();
+  updateBackButton();
+  
+  const viewer = document.getElementById('viewer');
+  
+  if (historyStack.length > 0) {
+    const prevUrl = historyStack[historyStack.length - 1];
+    viewer.innerHTML = `
+      <iframe 
+        src="${prevUrl}" 
+        style="width:100%; height:100%; border:none;"
+        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
+      ></iframe>
+    `;
+  } else {
+    viewer.innerHTML = '<div class="placeholder">👈 Selectează un rezultat pentru a-l deschide</div>';
+  }
+}
+
+function updateBackButton() {
+  const backBtn = document.getElementById("backBtn");
+  backBtn.disabled = historyStack.length === 0;
+}
+
+function search() {
+  let q = document.getElementById("query").value.trim();
+  
+  if (!q) {
+    showError("Te rog introdu o căutare!");
+    return;
+  }
+
+  currentSearch = q;
+  showLoading();
+
+  if (currentEngine === 'all') {
+    searchMultiple(q);
+  } else if (currentEngine === 'web') {
+    searchWeb(q);
+  } else if (currentEngine === 'wikipedia') {
+    searchWikipedia(q);
+  } else if (currentEngine === 'github') {
+    searchGitHub(q);
+  }
+}
+
+function searchMultiple(q) {
+  Promise.all([
+    searchWebAPI(q),
+    searchWikipediaAPI(q),
+    searchGitHubAPI(q)
+  ]).then(([webResults, wikiResults, githubResults]) => {
+    const allResults = [...webResults, ...wikiResults, ...githubResults];
+    displayResults(allResults);
+  }).catch(error => {
+    showError("Eroare la căutare: " + error.message);
+  });
+}
+
+function searchWeb(q) {
+  searchWebAPI(q).then(results => {
+    displayResults(results);
+  }).catch(error => {
+    showError("Eroare la căutare web: " + error.message);
+  });
+}
+
+function searchWikipedia(q) {
+  searchWikipediaAPI(q).then(results => {
+    displayResults(results);
+  }).catch(error => {
+    showError("Eroare la Wikipedia: " + error.message);
+  });
+}
+
+function searchGitHub(q) {
+  searchGitHubAPI(q).then(results => {
+    displayResults(results);
+  }).catch(error => {
+    showError("Eroare la GitHub: " + error.message);
+  });
+}
+
+function searchWebAPI(q) {
+  // Folosim Jina AI API care oferă web search fără restricții
+  return fetch(`https://api.jina.ai/search?q=${encodeURIComponent(q)}`, {
+    headers: {
+      'Accept': 'application/json'
+    }
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.data || !Array.isArray(data.data)) return [];
+      return data.data.slice(0, 10).map(item => ({
+        title: '🌐 ' + (item.title || item.url),
+        url: item.url,
+        description: (item.description || item.snippet || item.content || 'Web result').substring(0, 150),
+        source: 'Web'
+      }));
+    })
+    .catch(() => {
+      // Fallback: caută pe Google direct
+      return getGoogleResults(q);
+    });
+}
+
+function getGoogleResults(q) {
+  // Fallback cu rezultate simulate din Google
+  const results = [];
+  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  
+  results.push({
+    title: '🔍 Google Search Results',
+    url: googleUrl,
+    description: `Caută "${q}" pe Google - rezultatele complete`,
+    source: 'Web'
+  });
+
+  return results;
+}
+
+function searchWikipediaAPI(q) {
+  return fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&format=json&origin=*`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.query || !data.query.search) return [];
+      return data.query.search.slice(0, 5).map(item => ({
+        title: '📖 ' + item.title,
+        url: 'https://en.wikipedia.org/wiki/' + encodeURIComponent(item.title),
+        description: item.snippet.replace(/<[^>]*>/g, ''),
+        source: 'Wikipedia'
+      }));
+    })
+    .catch(() => []);
+}
+
+function searchGitHubAPI(q) {
+  return fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=5`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.items) return [];
+      return data.items.map(item => ({
+        title: '💻 ' + item.full_name,
+        url: item.html_url,
+        description: (item.description || 'No description') + ' ⭐ ' + item.stargazers_count,
+        source: 'GitHub'
+      }));
+    })
+    .catch(() => []);
+}
+
+function displayResults(results) {
+  if (results.length === 0) {
+    document.getElementById("results").innerHTML = `
+      <div class="no-results">
+        ❌ Nu au fost găsite rezultate pentru "${escapeHtml(currentSearch)}"
+      </div>
+    `;
+    return;
+  }
+
+  let html = "<h3>📊 Rezultate pentru: " + escapeHtml(currentSearch) + "</h3>";
+  
+  results.forEach(result => {
+    html += `
+      <div class="result">
+        <a onclick="openInViewer('${escapeHtml(result.url)}')">
+          ${escapeHtml(result.title)}
+        </a>
+        <p>${escapeHtml(result.description)}</p>
+        <div class="result-url">${escapeHtml(result.url.substring(0, 60))}...</div>
+        <div class="result-source">🔗 ${escapeHtml(result.source)}</div>
+      </div>
+    `;
+  });
+
+  html += `<div class="result-count">Total: ${results.length} rezultate</div>`;
+  document.getElementById("results").innerHTML = html;
+}
+
+function showLoading() {
+  document.getElementById("results").innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Se caută...</p>
+    </div>
+  `;
+}
+
+function showError(message) {
+  document.getElementById("results").innerHTML = `<div class="error">⚠️ ${escapeHtml(message)}</div>`;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Enter key to search
+document.getElementById("query").addEventListener("keypress", function(event) {
+  if (event.key === "Enter") {
+    search();
+  }
+});
+
+// Initialize back button state
+updateBackButton();
+</script>
+
+</body>
+</html>
